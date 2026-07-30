@@ -124,7 +124,12 @@ def run_step_2_clustering(embeddings_path, labeled_indices, budget, k_neighbors=
 
     # Save the clustering head to a file so it can be loaded later without retraining
     torch.save(model.state_dict(), 'pretrained-models/scan_clustering_head.pth')
-    print("Saved clustering head to scan_clustering_head.pth")
+    print("Saved clustering head to pretrained-models/scan_clustering_head.pth")
+
+    # Save cluster assignments for Step 3 (querying) to load without re-clustering
+    assignments_path = 'features/cluster_assignments.npy'
+    np.save(assignments_path, cluster_assignments)
+    print(f"Saved cluster assignments to {assignments_path}")
     
     # 6. Identify Uncovered Clusters
     # Uncovered = Clusters that do NOT contain any indices from the labeled pool
@@ -132,6 +137,10 @@ def run_step_2_clustering(embeddings_path, labeled_indices, budget, k_neighbors=
     all_clusters = set(range(num_clusters))
     
     uncovered_clusters = list(all_clusters - labeled_clusters)
+
+    uncovered_path = 'features/uncovered_clusters.npy'
+    np.save(uncovered_path, np.array(uncovered_clusters, dtype=np.int64))
+    print(f"Saved uncovered clusters to {uncovered_path}")
     
     print(f"Total Clusters: {num_clusters}")
     print(f"Uncovered Clusters Found: {len(uncovered_clusters)} (Expected at least {budget})")
