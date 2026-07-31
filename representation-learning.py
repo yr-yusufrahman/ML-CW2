@@ -1,4 +1,3 @@
-import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -72,13 +71,14 @@ def extract_features(checkpoint_path, data_dir='./data', batch_size=512):
     dataset = torchvision.datasets.CIFAR10(
         root=data_dir, train=True, download=True, transform=transform
     )
+    # num_workers=0 avoids Windows multiprocessing issues when this
+    # module is loaded via importlib from active-learning.py.
     dataloader = DataLoader(
-        dataset, batch_size=batch_size, shuffle=False, num_workers=4
+        dataset, batch_size=batch_size, shuffle=False, num_workers=0
     )
     
     # 3. Extract Representations
     all_features = []
-    all_indices = []
     
     print("Extracting 512-dim L2-normalized features...")
     with torch.no_grad():
@@ -94,11 +94,6 @@ def extract_features(checkpoint_path, data_dir='./data', batch_size=512):
     all_features = np.concatenate(all_features, axis=0)
     
     print(f"Extraction complete! Final feature matrix shape: {all_features.shape}")
-    
-    # Save the features to disk so Step 2 (Clustering) can load them
-    os.makedirs('features', exist_ok=True)
-    np.save('features/cifar10_simclr_features.npy', all_features)
-    print("Saved features to features/cifar10_simclr_features.npy")
     
     return all_features
 

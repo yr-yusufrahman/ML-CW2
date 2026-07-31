@@ -79,7 +79,7 @@ def _most_typical_unlabelled(
 
 
 def get_typical_queries(
-    embeddings_path: str,
+    embeddings: np.ndarray,
     cluster_assignments: np.ndarray,
     labeled_indices: List[int],
     budget: int,
@@ -102,9 +102,12 @@ def get_typical_queries(
     print(f"Executing Step 3 on {device}...")
 
     # --------------------------------------------------------
-    # Load & normalise embeddings (same space Step 2 clustered in)
+    # Normalise embeddings (same space Step 2 clustered in)
     # --------------------------------------------------------
-    embeddings = torch.from_numpy(np.load(embeddings_path)).float().to(device)
+    if isinstance(embeddings, torch.Tensor):
+        embeddings = embeddings.detach().float().to(device)
+    else:
+        embeddings = torch.from_numpy(np.asarray(embeddings)).float().to(device)
     embeddings = F.normalize(embeddings, p=2, dim=1)
 
     cluster_assignments = np.asarray(cluster_assignments)
@@ -198,11 +201,12 @@ if __name__ == "__main__":
     MOCK_LABELED_INDICES: List[int] = []
     BUDGET = 20
 
+    embeddings = np.load('features/cifar10_simclr_features.npy')
     assignments = np.load('features/cluster_assignments.npy')
     uncovered = np.load('features/uncovered_clusters.npy')  # optional, for the sanity check only
 
     new_queries = get_typical_queries(
-        embeddings_path='features/cifar10_simclr_features.npy',
+        embeddings=embeddings,
         cluster_assignments=assignments,
         labeled_indices=MOCK_LABELED_INDICES,
         budget=BUDGET,
@@ -223,9 +227,7 @@ if __name__ == "__main__":
 
     # Update the labelled pool for the next AL iteration: L_i = L_{i-1} + queries
     updated_labeled_indices = sorted(set(MOCK_LABELED_INDICES) | set(new_queries))
-    np.save('features/labeled_indices.npy', np.array(updated_labeled_indices, dtype=np.int64))
     print(f"\nLabelled pool size after this round: {len(updated_labeled_indices)}")
-    print("Saved updated labelled indices to: features/labeled_indices.npy")
 
     # --------------------------------------------------------
     # Display up to 3 of the selected query images with revealed labels

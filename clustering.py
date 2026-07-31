@@ -5,7 +5,6 @@
 - The clustering head is a linear layer, as in official SCAN.
 """
 
-import os
 import numpy as np
 import torch
 import torch.nn as nn
@@ -19,11 +18,6 @@ from torch.utils.data import Dataset, DataLoader
 # ============================================================
 
 EMBEDDINGS_PATH = "features/cifar10_simclr_features.npy"
-
-# Output paths
-CLUSTER_ASSIGNMENTS_PATH = "features/cluster_assignments.npy"
-UNCOVERED_CLUSTERS_PATH = "features/uncovered_clusters.npy"
-SCAN_HEAD_PATH = "pretrained-models/scan_clustering_head.pth"
 
 # Embedding dimensionality
 EMBEDDING_DIM = 512
@@ -41,10 +35,8 @@ BATCH_SIZE = 1024
 LEARNING_RATE = 0.001
 # Confirmed against the official CIFAR-10 SCAN config: 5.0 (not 2.0).
 ENTROPY_WEIGHT = 5.0
-# Number of DataLoader workers. Since the kNN indices are now plain CPU
-# data (see fix #1), this can safely be > 0 to parallelize batch
-# assembly. Set to 0 if you hit multiprocessing issues on your platform.
-NUM_WORKERS = 2
+# Keep at 0 when loaded via importlib (Windows can't pickle the dataset class).
+NUM_WORKERS = 0
 SEED = 42
 
 
@@ -371,22 +363,19 @@ def find_uncovered_clusters(assignments, labeled_indices, num_clusters):
 # ============================================================
 
 def run_scan(
-    embeddings_path, labeled_indices, budget, max_clusters=500,
+    embeddings, labeled_indices, budget, max_clusters=500,
     k_neighbors=20, epochs=50, batch_size=1024,
     learning_rate=0.001, entropy_weight=5.0, num_workers=0,
-    output_assignments_path=CLUSTER_ASSIGNMENTS_PATH,
-    output_uncovered_path=UNCOVERED_CLUSTERS_PATH,
-    output_head_path=SCAN_HEAD_PATH
 ):
     """
-    Run SCAN clustering on the embeddings.
+    Run SCAN clustering on in-memory embeddings.
+    Returns (cluster_assignments, uncovered_clusters); nothing is written to disk.
     """
 
     device = get_device()
-    print()
-    print(f"Loading embeddings from:\n  {embeddings_path}")
 
-    embeddings_np = np.load(embeddings_path)
+    embeddings_np = np.asarray(embeddings)
+    print()
     print(f"Raw embedding shape: {embeddings_np.shape}")
 
     if embeddings_np.ndim != 2:
@@ -458,21 +447,7 @@ def run_scan(
         device=device, num_workers=num_workers
     )
 
-    os.makedirs(os.path.dirname(output_head_path), exist_ok=True)
-    torch.save(
-        {
-            "model_state_dict": model.state_dict(),
-            "embedding_dim": embedding_dim,
-            "num_clusters": num_clusters,
-            "max_clusters": max_clusters,
-            "k_neighbors": k_neighbors,
-            "entropy_weight": entropy_weight,
-            "best_loss": best_loss
-        },
-        output_head_path
-    )
-
-    print(f"Saved SCAN head to:\n  {output_head_path}")
+    print(f"Best SCAN loss (in-memory head): {best_loss:.6f}")
     print()
     print("Computing final cluster assignments...")
 
@@ -489,16 +464,6 @@ def run_scan(
         assignments=cluster_assignments, labeled_indices=labeled_indices,
         num_clusters=num_clusters
     )
-
-    os.makedirs(os.path.dirname(output_assignments_path), exist_ok=True)
-    np.save(output_assignments_path, cluster_assignments)
-    print()
-    print(f"Saved cluster assignments to:\n  {output_assignments_path}")
-
-    os.makedirs(os.path.dirname(output_uncovered_path), exist_ok=True)
-    np.save(output_uncovered_path, uncovered_clusters)
-    print(f"Saved uncovered clusters to:\n  {output_uncovered_path}")
-
 
     # Final summary
     print()
@@ -551,8 +516,9 @@ if __name__ == "__main__":
     LABELED_INDICES = np.array([], dtype=np.int64)
     BUDGET = 20
 
+    embeddings = np.load(EMBEDDINGS_PATH)
     clusters, uncovered = run_scan(
-        embeddings_path=EMBEDDINGS_PATH,
+        embeddings=embeddings,
         labeled_indices=LABELED_INDICES,
         budget=BUDGET,
         max_clusters=MAX_CLUSTERS,
@@ -562,9 +528,6 @@ if __name__ == "__main__":
         learning_rate=LEARNING_RATE,
         entropy_weight=ENTROPY_WEIGHT,
         num_workers=NUM_WORKERS,
-        output_assignments_path=CLUSTER_ASSIGNMENTS_PATH,
-        output_uncovered_path=UNCOVERED_CLUSTERS_PATH,
-        output_head_path=SCAN_HEAD_PATH
     )
 
     print()
