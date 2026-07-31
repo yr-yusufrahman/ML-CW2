@@ -33,10 +33,14 @@ B clusters
 Queries
 
 
-SCAN RepLearn:
+## SCAN RepLearn: (SCAN is a combination of 3 processes, you only need a few: SimCLR, Resnet?)
 You used a pretrained SCAN/SimCLR from the repo for the CIFAR-10. Final output of this step were embeddings, feature space.
 
-SCAN Clustering:
+You should train this because the paper told you which hyperparams used, just reduce where necessary to ensure training is feasible. 500 epochs is too much
+
+Also, check out the files from the SCAN repo to train the model properly! Although I'm sure you can get away with using this pretrained model because it was done on the same CIFAR-10 dataset!
+
+## SCAN Clustering: (DOUBLE-CHECK. Your code may feature knn, this clustering algorithm should use full part of SCAN, not some over-simplified version)
 Train a new SCAN to perform clustering on the embeddings, with your given budget. Params were saved for this clustering model (but it was quick to train!)
 
 - To load your pretrained clustering model:
@@ -66,7 +70,7 @@ assignments = load_model_for_demo('features/cifar10_simclr_features.npy', 'scan_
 
 
 
-Querying: TO-DO
+## Querying:
 Iterate through each cluster and add the max typicality example to your query list/set
 
 ---
