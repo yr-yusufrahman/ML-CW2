@@ -47,7 +47,7 @@ def load_scan_pretrained_weights(model, checkpoint_path):
     model.backbone.load_state_dict(cleaned_state_dict, strict=False)
     return model
 
-def extract_features(checkpoint_path, data_dir='./data', batch_size=512):
+def extract_features(checkpoint_path, data_dir='./data', batch_size=512, train=True):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")
     
@@ -69,7 +69,7 @@ def extract_features(checkpoint_path, data_dir='./data', batch_size=512):
     
     # TypiClust requires the unlabeled pool U0. We extract for the whole train set.
     dataset = torchvision.datasets.CIFAR10(
-        root=data_dir, train=True, download=True, transform=transform
+        root=data_dir, train=train, download=True, transform=transform
     )
     # num_workers=0 avoids Windows multiprocessing issues when this
     # module is loaded via importlib from active-learning.py.
